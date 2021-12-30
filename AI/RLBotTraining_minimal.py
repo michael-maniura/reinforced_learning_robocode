@@ -1,12 +1,12 @@
 from AI.game_environment import GameEnvironment
 from keras.models import Sequential
+import keras.layers
 from AI.actions import Action
 
 class Training:
 
     def __init__(self, x, y, botList, no_graphics = True):
-        # parameters
-
+        # parameters for training
         num_actions = len(Action.get_actions())
         self.width = x
         self.height = y
@@ -29,9 +29,16 @@ class Training:
 
     def train(self, game_over = False):
         # Implement the Training here
+
+        self.model.train_on_batch(input_observations, best_actions)
         if game_over:
             self.reset_game(False)
             return
+            
+    def get_current_input_vector(self):
+        #self.env.
+        own_bot = self.botList[0][0]
+        enemy_bot = self.botList[1][0]
 
     def reset_game(self, first_time = False):
         botList = []
@@ -51,18 +58,15 @@ class Training:
         else:
             self.env.restart(botList, models, trainings)
 
-
     def create_model(self):
         # You have to set up the model with keras here
         model = Sequential()
+        model.add(keras.layers.Dense(units = 20, activation = 'relu', input_shape = (1, )))
+        model.add(keras.layers.Dropout(0.2))
+        model.add(keras.layers.Dense(units = 40, activation = 'relu'))
+        model.add(keras.layers.Dropout(0.2))
+        model.add(keras.layers.Dense(units = len(Action.get_actions()), activation = 'softmax'))
         
-        # first version: angle to enemy as reward 
-        model.add(Input(shape=(1)))
-        model.add(Dense(10, activation="relu", name="layer_1"))
-        model.add(Dense(20, activation="relu", name="layer_2"))
-        model.add(Dense(1, activation="relu", name="layer_3"))
-
-
+        model.summary()
+        model.compile(optimizer = 'adam')
         return model
-
-    

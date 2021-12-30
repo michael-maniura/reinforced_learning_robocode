@@ -6,7 +6,7 @@ from keras.models import model_from_json
 import numpy as np
 
 
-class ReinforcementLearningBotMinimal(Robot):
+class ReinforcedLearningFirst(Robot):
     # Create a Robot
 
     def init(self):
@@ -27,13 +27,22 @@ class ReinforcementLearningBotMinimal(Robot):
         self.last_action = None
         self.last_input = None
 
+        # Training variables
+        self.epsilon = 0.1
+        self.num_actions = len(Action.get_actions())
+        self.model_file_name = 'ReinforcedLearningFirst_model.json'
+        self.model_weights_file_name = 'ReinforcedLearningFirst_model_weights.h5'
+
         if self.model is None:
-            json_file = open('model_YourBotName.json', 'r')
-            loaded_model_json = json_file.read()
-            json_file.close()
-            self.model = model_from_json(loaded_model_json)
-            # load weights into new model
-            self.model.load_weights("model_YourBotName.h5")
+            self.load_model()
+
+    def load_model(self):
+        json_file = open(self.model_file_name, 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        self.model = model_from_json(loaded_model_json)
+        # load weights into new model
+        self.model.load_weights(self.model_weights_file_name)
 
     def randmax(self, values):
         max_values = []
@@ -61,9 +70,13 @@ class ReinforcementLearningBotMinimal(Robot):
         if self.training and self.last_action is not None:
             game_over = False
             
-            #current_state = self.get_current_state_for_training()
+            training_data = {}
+            training_data["input_t"] = input_t
+            training_data['last_input'] = self.last_input
+            training_data['last_action'] = self.last_action
+            #training_data['own_bot_state'] = self.get_current_state_for_training()
 
-            self.training.train(last_action, input_t, game_over)
+            self.training.train(training_data, game_over)
 
         q = self.model.predict(input_t)
         # Select the action with the highest expected reward
@@ -101,7 +114,22 @@ class ReinforcementLearningBotMinimal(Robot):
         if self.getPosition_enemy() is not None:
             pos_enemy = (self.getPosition_enemy().x(), self.getPosition_enemy().y())
             angle_to_enemy = self.calcAngleTo_singed(pos_self, pos_enemy)
-            return np.array([angle_to_enemy/ 360]).reshape((1, -1))
+            
+            angle_normalized = angle_to_enemy / 360
+            own_energy = self.energy_left_self()/100
+            enemy_energy = self.energy_left_enemy()/100
+            shot_possible_by_enemy = self.shot_possible_by_enemy()
+            shot_possible_at_enemy = self.shot_possible_at_enemy()
+            
+            return np.array(
+                [
+                    angle_normalized,
+                    own_energy,
+                    enemy_energy,
+                    shot_possible_by_enemy,
+                    shot_possible_at_enemy
+                    ]
+                    ).reshape((1, -1))
         else:
             return np.array([self.last_input[0, 0]]).reshape((1, -1))
 
@@ -136,6 +164,7 @@ class ReinforcementLearningBotMinimal(Robot):
         if self.training and self.last_action is not None:
             # here you might want to add things
             game_over = True
+            self.training.on_own_death()
             self.training.train(game_over)
 
     def onTargetSpotted(self, botId, botName, botPos):  # NECESARY FOR THE GAME
@@ -147,4 +176,5 @@ class ReinforcementLearningBotMinimal(Robot):
         if self.training and self.last_action is not None:
             #here you might want to add things
             game_over = True
+            self.training.on_enemy_death()
             self.training.train(game_over)
