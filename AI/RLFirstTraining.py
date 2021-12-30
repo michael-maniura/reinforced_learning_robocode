@@ -4,13 +4,14 @@ from keras.models import Sequential
 import keras.layers
 from AI.actions import Action
 
+import sys
 from matplotlib import pyplot
 
 class RLFirstTaining:
 
     def __init__(self, x, y, botList, no_graphics = True):
         # parameters
-        self.epochs_to_train = 2000
+        self.epochs_to_train = 20#00
         self.current_epoch = 1
         self.batch_size = 20
 
@@ -27,8 +28,9 @@ class RLFirstTaining:
         self.botList = botList
         
         self.model_train = self.create_model()
-        #self.save_model(self.model_train)
-        self.model_act = self.create_model()
+        self.model_act = self.load_model()
+        if self.model_act == None:
+            self.model_act = self.create_model()
 
         self.env = GameEnvironment(self.width, self.height, no_grafics = no_graphics)
         self.reset_game(True)
@@ -57,6 +59,7 @@ class RLFirstTaining:
     def training_done(self):
         print("Training done")
         self.save_model(self.model_train)
+        sys.exit()
 
     def train(self, training_data, game_over = False):
         if self.current_epoch > self.epochs_to_train:
