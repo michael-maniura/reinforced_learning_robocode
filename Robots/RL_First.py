@@ -64,21 +64,25 @@ class ReinforcedLearningFirst(Robot):
         shot_possible = self.shot_possible_at_enemy
         return (shot_possible)
 
+    def get_training_data(self):
+        input_t = self.observe()
+        training_data = {}
+        training_data["input_t"] = input_t
+        training_data['last_input'] = self.last_input
+        training_data['last_action'] = self.last_action
+        return training_data
+
     def run(self):
         # main loop to command the bot
         input_t = self.observe()
         if self.training and self.last_action is not None:
             game_over = False
-            
-            training_data = {}
-            training_data["input_t"] = input_t
-            training_data['last_input'] = self.last_input
-            training_data['last_action'] = self.last_action
-            #training_data['own_bot_state'] = self.get_current_state_for_training()
-
-            self.training.train(training_data, game_over)
-
-        q = self.model.predict(input_t)
+            self.training.train(self.get_training_data(), game_over)
+        
+        try:
+            q = self.model.predict(input_t)
+        except Exception:
+            here = 0
         # Select the action with the highest expected reward
         action = self.randmax(q[0])
 
@@ -115,7 +119,7 @@ class ReinforcedLearningFirst(Robot):
             pos_enemy = (self.getPosition_enemy().x(), self.getPosition_enemy().y())
             angle_to_enemy = self.calcAngleTo_singed(pos_self, pos_enemy)
             
-            angle_normalized = angle_to_enemy / 360
+            angle = angle_to_enemy / 360
             own_energy = self.energy_left_self()/100
             enemy_energy = self.energy_left_enemy()/100
             shot_possible_by_enemy = self.shot_possible_by_enemy()
@@ -123,7 +127,7 @@ class ReinforcedLearningFirst(Robot):
             
             return np.array(
                 [
-                    angle_normalized,
+                    angle,
                     own_energy,
                     enemy_energy,
                     shot_possible_by_enemy,
@@ -131,7 +135,8 @@ class ReinforcedLearningFirst(Robot):
                     ]
                     ).reshape((1, -1))
         else:
-            return np.array([self.last_input[0, 0]]).reshape((1, -1))
+            return self.last_input
+            #return np.array([self.last_input[0, 0]]).reshape((1, -1))
 
     def onHitWall(self):
         self.reset()  # To reset the run function to the begining (automatically called on hitWall, and robotHit event)
@@ -165,7 +170,7 @@ class ReinforcedLearningFirst(Robot):
             # here you might want to add things
             game_over = True
             self.training.on_own_death()
-            self.training.train(game_over)
+            self.training.train(self.get_training_data(), game_over)
 
     def onTargetSpotted(self, botId, botName, botPos):  # NECESARY FOR THE GAME
         "when the bot see another one"
@@ -177,4 +182,4 @@ class ReinforcedLearningFirst(Robot):
             #here you might want to add things
             game_over = True
             self.training.on_enemy_death()
-            self.training.train(game_over)
+            self.training.train(self.get_training_data(), game_over)
