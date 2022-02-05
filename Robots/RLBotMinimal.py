@@ -28,12 +28,12 @@ class ReinforcementLearningBotMinimal(Robot):
         self.last_input = None
 
         if self.model is None:
-            json_file = open('model_YourBotName.json', 'r')
+            json_file = open('ReinforcedLearningFirst_model.json', 'r')
             loaded_model_json = json_file.read()
             json_file.close()
             self.model = model_from_json(loaded_model_json)
             # load weights into new model
-            self.model.load_weights("model_YourBotName.h5")
+            self.model.load_weights("ReinforcedLearningFirst_model_weights.h5")
 
     def randmax(self, values):
         max_values = []
@@ -63,7 +63,7 @@ class ReinforcementLearningBotMinimal(Robot):
             
             #current_state = self.get_current_state_for_training()
 
-            self.training.train(last_action, input_t, game_over)
+            self.training.train(self.last_action, input_t, game_over)
 
         q = self.model.predict(input_t)
         # Select the action with the highest expected reward

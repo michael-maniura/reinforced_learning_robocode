@@ -23,9 +23,15 @@ class ReinforcedLearningFirst(Robot):
         self.radarVisible(True)  # if True the radar field is visible
         self.gun_to_side()
         self.lockRadar("gun")
-        size = self.getMapSize()
+        self.map_size = self.getMapSize()
+
         self.last_action = None
         self.last_input = None
+        #self.last_angle_enemy = 0
+        #self.last_energy_enemy = 100
+        #self.last_energy_self = 100
+        #self.last_shotPossibleAtEnemy = False
+        self.previous_enemy_position = None
 
         # Training variables
         self.epsilon = 0.1
@@ -60,51 +66,107 @@ class ReinforcedLearningFirst(Robot):
         else:
             return np.random.choice(max_values)
 
-    def get_current_state_for_training(self):
-        shot_possible = self.shot_possible_at_enemy
-        return (shot_possible)
-
     def get_training_data(self):
-        input_t = self.observe()
+        input = self.observe()
         training_data = {}
-        training_data["input_t"] = input_t
+        training_data["input"] = input
         training_data['last_input'] = self.last_input
         training_data['last_action'] = self.last_action
         return training_data
 
     def run(self):
-        # main loop to command the bot
-        input_t = self.observe()
+        input = self.observe() # current state
+
         if self.training and self.last_action is not None:
             game_over = False
+            # use the current state to evaluate the last action in the last state
             self.training.train(self.get_training_data(), game_over)
         
-        try:
-            q = self.model.predict(input_t)
-        except Exception:
-            here = 0
-        # Select the action with the highest expected reward
-        action = self.randmax(q[0])
+        # GLIE
+        if np.random.rand() <= self.epsilon:
+            action = np.random.randint(0, self.num_actions, size=1)[0]
+        else: # Select the action with the highest expected reward
+            q = self.model.predict(input)
+            action = self.randmax(q[0])
 
+        # save current action and state for evaluation with the next, resulting state
         self.last_action = action
-        self.last_input = input_t
+        self.last_input = input
 
         if action == 0:
+            print("turning right")
             self.turn_right()
         elif action == 1:
+            print("turning left")
             self.turn_left()
         elif action == 2:
+            print("going forward")
             self.forward()
         elif action == 3:
+            print("going backwards")
             self.backwards()
-        elif action == 2:
+        elif action == 4:
+            print("shooting")
             self.shoot()
 
-    def calcAngleTo_singed(self, pos_self, pos_other):
+    def normalize_position(self, x, y):
+        return (x/self.map_size[0], y/self.map_size[1])
+    
+    def get_own_normalized_position(self):
+        x = self.getPosition().x()
+        y = self.getPosition().y()
+        return self.normalize_position(x, y)
+    
+    def get_enemy_normalized_position(self):
+        enemy_position = self.getPosition_enemy()
+        if enemy_position is None:
+            enemy_position = self.previous_enemy_position
+        else:
+            enemy_position = (self.getPosition_enemy().x(), self.getPosition_enemy().y())
+        return self.normalize_position(enemy_position[0], enemy_position[1])
+
+    def get_normalized_positions(self):
+        own_position_normalized = self.get_own_normalized_position()
+        enemy_position_normalized = self.get_enemy_normalized_position()
+        return (own_position_normalized, enemy_position_normalized)
+
+    def get_normalized_energy_levels(self):
+        own_energy = self.energy_left_self()
+        own_energy_normalized = own_energy/100
+
+        enemy_energy = self.energy_left_enemy()
+        if enemy_energy is None:
+            if own_energy <= 0:
+                enemy_energy = 100
+            else:
+                enemy_energy = 0
+        enemy_energy_normalized = enemy_energy/100
+
+        return (own_energy_normalized, enemy_energy_normalized)
+    
+    def get_normalized_gun_heading(self):
+        return ((self.getGunHeading() % 360) /360)
+    
+    def get_normalized_angle_to_enemy(self):
+        own_position = (self.getPosition().x(), self.getPosition().y())
+
+        enemy_position = self.getPosition_enemy()
+        if enemy_position is None:
+            enemy_position = self.previous_enemy_position
+        else:
+            enemy_position = (self.getPosition_enemy().x(), self.getPosition_enemy().y())
+            self.previous_enemy_position = enemy_position
+        angle_to_enemy = self.calculate_angle_to_enemy(
+            own_position,
+            enemy_position
+            )
+        return angle_to_enemy/360
+
+    def calculate_angle_to_enemy(self, own_position, enemy_position):
         test_step_to_left = 10
         gun_heading_to_left = self.getGunHeading() - test_step_to_left
-        angle_to_enemy = np.round(Action.angleTo(pos_self, pos_other, self.getGunHeading()), 2)
-        angle_to_enemy_to_left = np.round(Action.angleTo(pos_self, pos_other, gun_heading_to_left), 2)
+        angle_to_enemy = np.round(Action.angleTo(own_position, enemy_position, self.getGunHeading()), 2)
+        angle_to_enemy_to_left = np.round(Action.angleTo(own_position, enemy_position, gun_heading_to_left), 2)
 
         if (abs(angle_to_enemy - angle_to_enemy_to_left) >= test_step_to_left \
             and (angle_to_enemy_to_left > angle_to_enemy)) \
@@ -114,29 +176,25 @@ class ReinforcedLearningFirst(Robot):
         return angle_to_enemy
 
     def observe(self):
-        pos_self = (self.getPosition().x(), self.getPosition().y())
-        if self.getPosition_enemy() is not None:
-            pos_enemy = (self.getPosition_enemy().x(), self.getPosition_enemy().y())
-            angle_to_enemy = self.calcAngleTo_singed(pos_self, pos_enemy)
-            
-            angle = angle_to_enemy / 360
-            own_energy = self.energy_left_self()/100
-            enemy_energy = self.energy_left_enemy()/100
-            shot_possible_by_enemy = self.shot_possible_by_enemy()
-            shot_possible_at_enemy = self.shot_possible_at_enemy()
-            
-            return np.array(
-                [
-                    angle,
-                    own_energy,
-                    enemy_energy,
-                    shot_possible_by_enemy,
-                    shot_possible_at_enemy
-                    ]
-                    ).reshape((1, -1))
-        else:
-            return self.last_input
-            #return np.array([self.last_input[0, 0]]).reshape((1, -1))
+        own_energy, enemy_energy = self.get_normalized_energy_levels()
+        own_position, enemy_position = self.get_normalized_positions()
+        gun_heading = self.get_normalized_gun_heading()
+        angle_to_enemy = self.get_normalized_angle_to_enemy()
+
+        inputs = [
+            own_energy,
+            enemy_energy,
+            #own_position[0],
+            #own_position[1],
+            #enemy_position[0],
+            #enemy_position[1],
+            gun_heading,
+            angle_to_enemy,
+            self.shot_possible_at_enemy(),
+            self.shot_possible_by_enemy()
+        ]
+
+        return np.array(inputs).reshape(1, -1)
 
     def onHitWall(self):
         self.reset()  # To reset the run function to the begining (automatically called on hitWall, and robotHit event)
