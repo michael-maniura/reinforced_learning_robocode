@@ -15,7 +15,7 @@ class RLFirstTaining:
 
     def __init__(self, x, y, botList, no_graphics = True, verbose=1):
         #  initialize training related variables
-        self.epochs_to_train = 1000
+        self.epochs_to_train = 3000
         self.current_epoch = 1
         self.batch_size = 20
         self.model_version = 1
@@ -132,7 +132,7 @@ class RLFirstTaining:
 
 
         batch_loss = None
-        if self.current_epoch > self.batch_size and np.random.rand() > self.batch_training_epsilon:
+        if self.current_epoch > self.batch_size:# and np.random.rand() > self.batch_training_epsilon:
             inputs, targets = self.experience_replay.get_batch(self.model_train, self.model_act, self.batch_size)
             batch_loss = self.model_train.train_on_batch(inputs, targets)
 
@@ -268,13 +268,13 @@ class RLFirstTaining:
 
         model = tf.keras.models.Sequential()
         model.add(keras.layers.Dense(units = 50, activation = 'relu', input_shape = (6, )))
-        model.add(keras.layers.Dropout(0.1))
+        model.add(keras.layers.Dropout(0.2))
         model.add(keras.layers.Dense(units = 150, activation = 'relu'))
-        model.add(keras.layers.Dropout(0.1))
+        model.add(keras.layers.Dropout(0.2))
         model.add(keras.layers.Dense(units = 250, activation = 'relu'))
-        model.add(keras.layers.Dropout(0.1))
+        model.add(keras.layers.Dropout(0.2))
         model.add(keras.layers.Dense(units = 50, activation = 'relu'))
-        model.add(keras.layers.Dropout(0.1))
+        model.add(keras.layers.Dropout(0.2))
         model.add(keras.layers.Dense(units = len(Action.get_actions())))
         
         model.summary()

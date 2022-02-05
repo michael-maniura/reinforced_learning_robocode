@@ -11,7 +11,7 @@ def shot_possible_at_enemy_heuristic(action, shot_possible):
         else: # something else than shooting
             return -0.2
     else:
-        if action == 4: # shoot withouth being able is not efficient
+        if action == 4: # shoot without being able is not efficient
             return -0.3
         else: # something else than shooting is wanted in that case
             return 0.2
@@ -43,13 +43,17 @@ def angle_change_heuristic(current_angle_to_enemy, previous_angle_to_enemy):
     
     return reward
 
-def own_energy_change_heuristic(current_energy, previous_energy):
+def own_energy_change_heuristic(current_energy, previous_energy, action):
     if current_energy > previous_energy:
         return 0.1 # reward energy gain by hitting the enemy
     elif current_energy < previous_energy:
-        return -0.1 # penalize energy loss by being shot or hitting a wall
+        if action == 2 or action == 3: #
+            return -0.2 # penalize energy loss by hitting a wall
+        else:
+            return -0.1 # penalize energy loss by being shot
     elif current_energy == previous_energy:
         return 0 # no penalty as of now for keeping the same energy level
+    
 
 def enemy_energy_change_heuristic(current_energy, previous_energy):
     if current_energy > previous_energy:

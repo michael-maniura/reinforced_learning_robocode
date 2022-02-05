@@ -83,7 +83,7 @@ class ReinforcedLearningFirst(Robot):
             self.training.train(self.get_training_data(), game_over)
         
         # GLIE
-        if np.random.rand() <= self.epsilon:
+        if self.training and np.random.rand() <= self.epsilon:
             action = np.random.randint(0, self.num_actions, size=1)[0]
         else: # Select the action with the highest expected reward
             q = self.model.predict(input)
@@ -132,6 +132,11 @@ class ReinforcedLearningFirst(Robot):
 
     def get_normalized_energy_levels(self):
         own_energy = self.energy_left_self()
+        if own_energy is None:
+            if enemy_energy <= 0:
+                own_energy = 100
+            else:
+                own_energy = 0
         own_energy_normalized = own_energy/100
 
         enemy_energy = self.energy_left_enemy()
@@ -175,11 +180,27 @@ class ReinforcedLearningFirst(Robot):
             angle_to_enemy *= -1
         return angle_to_enemy
 
+    def get_shots_possible(self):
+        shot_possible_at_enemy = self.shot_possible_at_enemy()
+        if shot_possible_at_enemy is None:
+            shot_possible_at_enemy = 0
+        else:
+            shot_possible_at_enemy = int(shot_possible_at_enemy)
+        
+        shot_possible_by_enemy = self.shot_possible_by_enemy()
+        if shot_possible_by_enemy is None:
+            shot_possible_by_enemy = 0
+        else:
+            shot_possible_by_enemy = int(shot_possible_by_enemy)
+        return (shot_possible_at_enemy, shot_possible_by_enemy)
+
     def observe(self):
         own_energy, enemy_energy = self.get_normalized_energy_levels()
         own_position, enemy_position = self.get_normalized_positions()
         gun_heading = self.get_normalized_gun_heading()
         angle_to_enemy = self.get_normalized_angle_to_enemy()
+
+        shot_possible_at_enemy, shot_possible_by_enemy = self.get_shots_possible()
 
         inputs = [
             own_energy,
@@ -190,8 +211,8 @@ class ReinforcedLearningFirst(Robot):
             #enemy_position[1],
             gun_heading,
             angle_to_enemy,
-            self.shot_possible_at_enemy(),
-            self.shot_possible_by_enemy()
+            shot_possible_at_enemy,
+            shot_possible_by_enemy
         ]
 
         return np.array(inputs).reshape(1, -1)

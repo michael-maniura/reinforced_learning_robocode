@@ -32,10 +32,13 @@ def get_reward(training_data, game_over):
     if game_over:
         return heuristics.game_over_heuristic(previous_enemy_energy)
     
-    reward += heuristics.shot_possible_at_enemy_heuristic(last_action, previous_shot_possible_at_enemy)
-    reward += heuristics.shot_possible_by_enemy_heuristic(last_action, previous_shot_possible_by_enemy)
+    if previous_shot_possible_at_enemy:
+        return heuristics.shot_possible_at_enemy_heuristic(last_action, previous_shot_possible_at_enemy)
+    #reward = heuristics.shot_possible_at_enemy_heuristic(last_action, previous_shot_possible_at_enemy)
+    #reward += 15 * heuristics.shot_possible_by_enemy_heuristic(last_action, previous_shot_possible_by_enemy)
     reward += heuristics.angle_change_heuristic(current_angle_to_enemy, previous_angle_to_enemy)
-    reward += heuristics.own_energy_change_heuristic(current_own_energy, previous_own_energy)
-    reward += heuristics.enemy_energy_change_heuristic(current_enemy_energy, previous_enemy_energy)
+    reward += heuristics.own_energy_change_heuristic(current_own_energy, previous_own_energy, last_action)
+   
+    #reward += 5 * heuristics.enemy_energy_change_heuristic(current_enemy_energy, previous_enemy_energy)
     
     return reward
