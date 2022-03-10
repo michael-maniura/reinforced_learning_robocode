@@ -24,13 +24,12 @@ class ReinforcedLearningFirst(Robot):
         self.gun_to_side()
         self.lockRadar("gun")
         self.map_size = self.getMapSize()
+        
+        self.run_count = 0
+        self.batch_size = 50
 
         self.last_action = None
         self.last_input = None
-        #self.last_angle_enemy = 0
-        #self.last_energy_enemy = 100
-        #self.last_energy_self = 100
-        #self.last_shotPossibleAtEnemy = False
         self.previous_enemy_position = None
 
         # Training variables
@@ -108,6 +107,10 @@ class ReinforcedLearningFirst(Robot):
         elif action == 4:
             print("shooting")
             self.shoot()
+
+        self.run_count += 1
+        if self.run_count % self.batch_size == 0:
+            self.model.load_weights(self.model_weights_file_name)
 
     def normalize_position(self, x, y):
         return (x/self.map_size[0], y/self.map_size[1])

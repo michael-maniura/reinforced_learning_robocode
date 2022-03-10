@@ -1,6 +1,16 @@
 from AI.DoubleQLearning import heuristics
 
-def get_reward(training_data, game_over):
+def get_reward(training_data: dict, game_over: bool) -> float:
+    '''
+    Get the reward for a given set of training data.
+
+            Parameters:
+                    training_data: Set of training data containing the current observations, the last observations and the last action
+                    game_over: Bool flag indicating whether the game is over or not
+
+            Returns:
+                    reward: The reward for the given state
+    '''
     reward = 0
 
     input = training_data["input"][0]
@@ -37,7 +47,7 @@ def get_reward(training_data, game_over):
     #reward = heuristics.shot_possible_at_enemy_heuristic(last_action, previous_shot_possible_at_enemy)
     #reward += 15 * heuristics.shot_possible_by_enemy_heuristic(last_action, previous_shot_possible_by_enemy)
     reward += heuristics.angle_change_heuristic(current_angle_to_enemy, previous_angle_to_enemy)
-    reward += heuristics.own_energy_change_heuristic(current_own_energy, previous_own_energy, last_action)
+    #reward += heuristics.own_energy_change_heuristic(current_own_energy, previous_own_energy, last_action)
    
     #reward += 5 * heuristics.enemy_energy_change_heuristic(current_enemy_energy, previous_enemy_energy)
     

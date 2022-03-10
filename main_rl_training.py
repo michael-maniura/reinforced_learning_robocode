@@ -12,7 +12,6 @@ if __name__ == "__main__":
     botList.append((bot, True))
     
     #enemy
-    #bot = Charlier
     bot = Camper
     botList.append((bot, False))
     

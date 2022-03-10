@@ -15,9 +15,9 @@ class RLFirstTaining:
 
     def __init__(self, x, y, botList, no_graphics = True, verbose=1):
         #  initialize training related variables
-        self.epochs_to_train = 3000
+        self.epochs_to_train = 10000
         self.current_epoch = 1
-        self.batch_size = 20
+        self.batch_size = 50
         self.model_version = 1
         self.count_of_available_actions = len(Action.get_actions())
         
@@ -31,7 +31,6 @@ class RLFirstTaining:
         self.experience_replay = ExperienceReplay()
         self.game_count = 0
         self.win_count = 0
-        self.batch_training_epsilon = 0.2
 
         # console output related variables
         self.padding_size = len(str(self.epochs_to_train))
@@ -39,6 +38,7 @@ class RLFirstTaining:
         
         # create models for training and acting
         self.model_train = self.create_model()
+        
         if self.verbose > 1:
             print("Created and assigned new training model")
 
@@ -55,16 +55,13 @@ class RLFirstTaining:
         self.env = GameEnvironment(self.width, self.height, no_grafics = no_graphics)
         self.reset_game(True)
 
-    def save_model(self, model):
+    def save_model(self, model: keras.Model):
         '''
         Save a given model as a serialized JSON file.
         The serialized model weights are saved to a .h5 file.
 
                 Parameters:
-                        model (keras.model): Model to save
-
-                Returns:
-                        None
+                        model: Model to save
         '''
         #model.save("ReinforcedLearningFirst_model")
         model_json = model.to_json()
@@ -72,16 +69,13 @@ class RLFirstTaining:
             json_file.write(model_json)
         model.save_weights("ReinforcedLearningFirst_model_weights.h5")
 
-    def load_model(self):
+    def load_model(self) -> keras.Model:
         '''
         Load a model from a serialized JSON file.
         The serialized model weights are loaded from a .h5 file.
 
-                Parameters:
-                        None
-
                 Returns:
-                        model (keras.model): The loaded model with the loaded weights
+                        model: The loaded model with the loaded weights
         '''
         try:
             json_file = open("ReinforcedLearningFirst_model.json", 'r')
@@ -97,6 +91,9 @@ class RLFirstTaining:
         return None
 
     def training_done(self):
+        '''
+        Callback function for training finish. Starts export of evaluation
+        '''
         # add the latest model data
         self.training_evaluation.add_model(self.model_version+1, self.game_count, self.win_count)
         if self.verbose  > 1:
@@ -106,7 +103,14 @@ class RLFirstTaining:
         self.save_model(self.model_train)
         sys.exit()
 
-    def train(self, training_data, game_over = False):
+    def train(self, training_data: dict, game_over = False):
+        '''
+        Perform a training step for the double q learning with experience replay
+
+                Parameters:
+                        training_data: Data to use for training. A dictionary of multiple inputs
+                        game_over: Boolean value whether the current game is finished or not
+        '''
         if self.current_epoch > self.epochs_to_train:
             self.training_done()
             return
@@ -117,9 +121,6 @@ class RLFirstTaining:
         last_input = training_data['last_input']
         last_action = training_data['last_action']
 
-        #if input_t is None or last_input is None or last_action is None or reward is None:
-        #    return
-
         self.experience_replay.remember(
             [
                 last_input,
@@ -129,14 +130,12 @@ class RLFirstTaining:
                 ],
             game_over)
 
-
-
         batch_loss = None
-        if self.current_epoch > self.batch_size:# and np.random.rand() > self.batch_training_epsilon:
+        if self.current_epoch > self.batch_size:
             inputs, targets = self.experience_replay.get_batch(self.model_train, self.model_act, self.batch_size)
             batch_loss = self.model_train.train_on_batch(inputs, targets)
 
-        # update act model after a certain number of epochs
+        # update acting model after a certain number of epochs
         if self.current_epoch % self.batch_size == 0:
             self.update_acting_model()
 
@@ -156,6 +155,9 @@ class RLFirstTaining:
             return
 
     def print_epoch_values(self, reward, batch_loss):
+        '''
+        Print epoch information depending on verbosity
+        '''
         if self.verbose > 1:
             print("\nReward: {0}".format(reward))
             print("Epoch {epoch:>{padding_size}} of {epochs} (Batch loss: {batch_loss})".format(
@@ -173,10 +175,13 @@ class RLFirstTaining:
             )
     
     def update_acting_model(self):
+        '''
+        Update the acting model with the current weights of the training model and
+        increment the model version by one
+        '''
         if self.verbose > 1:
             print("Updating acting model...")
         self.save_model(self.model_train)
-        #self.model_act = self.load_model()
         self.model_act.load_weights("ReinforcedLearningFirst_model_weights.h5")
         if self.verbose > 1:
             print("Successfully updated acting model")
@@ -184,17 +189,29 @@ class RLFirstTaining:
         self.model_version += 1
 
     def on_own_death(self):
+        '''
+        Callback function for the death of the own bot
+        '''
         self.training_evaluation.add_game(self.game_count, self.win_count)
         if self.verbose > 1:
             print("Own robot dead")
 
     def on_enemy_death(self):
+        '''
+        Callback function for the death of the enemy bot
+        '''
         self.win_count += 1
         self.training_evaluation.add_game(self.game_count, self.win_count)
         if self.verbose > 1:
             print("Enemy robot dead")
 
     def reset_game(self, first_time = False):
+        '''
+        Reset the game environment and start a new game 
+
+                Parameters:
+                        first_time: Boolean value whether the current game is the first
+        '''
         if self.verbose > 1:
             print("Resetting game after a game over")
 
@@ -217,63 +234,31 @@ class RLFirstTaining:
             self.env.restart(botList, models, trainings)
 
     def print_keras_device_list(self):
+        '''
+        Print the available devices which keras can use for training (CPUs, GPUs)
+        '''
         from tensorflow.python.client import device_lib
         print(device_lib.list_local_devices())
 
-    
-    """
-    def create_model(self):
-        if self.verbose > 1:
-            self.print_keras_device_list()
-            
-        model = tf.keras.models.Sequential()
-        model.add(keras.layers.Dense(units = 20, activation = 'relu', input_shape = (6, )))
-        #model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = 80, activation = 'relu'))
-        #model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = 40, activation = 'relu'))
-        #model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = len(Action.get_actions())))
-        
-        model.summary()
-        model.compile(
-            optimizer = 'adam',
-            loss='mse'
-        )
-        return model
-    """
-    """
-    def create_model(self):
+    def create_model(self) -> keras.Model:
+        '''
+        Create the model which is implemented as a neural net
+
+                Returns:
+                        model: The created neural net as a keras model
+        '''
+        # Approach with bigger neural net
         if self.verbose > 1:
             self.print_keras_device_list()
 
         model = tf.keras.models.Sequential()
-        model.add(keras.layers.Dense(units = 100, activation = 'relu', input_shape = (6, )))
-        #model.add(keras.layers.Dropout(0.1))
-        model.add(keras.layers.Dense(units = 100, activation = 'relu'))
-        #model.add(keras.layers.Dropout(0.1))
-        model.add(keras.layers.Dense(units = len(Action.get_actions())))
-        
-        model.summary()
-        model.compile(
-            optimizer = 'adam',
-            loss='mse'
-            )
-        return model
-
-    """
-    def create_model(self):
-        if self.verbose > 1:
-            self.print_keras_device_list()
-
-        model = tf.keras.models.Sequential()
-        model.add(keras.layers.Dense(units = 50, activation = 'relu', input_shape = (6, )))
+        model.add(keras.layers.Dense(units = 500, activation = 'relu', input_shape = (6, )))
         model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = 150, activation = 'relu'))
+        model.add(keras.layers.Dense(units = 1500, activation = 'relu'))
         model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = 250, activation = 'relu'))
+        model.add(keras.layers.Dense(units = 2500, activation = 'relu'))
         model.add(keras.layers.Dropout(0.2))
-        model.add(keras.layers.Dense(units = 50, activation = 'relu'))
+        model.add(keras.layers.Dense(units = 500, activation = 'relu'))
         model.add(keras.layers.Dropout(0.2))
         model.add(keras.layers.Dense(units = len(Action.get_actions())))
         
@@ -287,6 +272,7 @@ class RLFirstTaining:
 
     """
     def create_model(self):
+        # Approach with convolution
         model = tf.keras.models.Sequential()
         model.add(keras.layers.Conv1D(32, 3, activation='relu', input_shape=(10, 1)))
         print(model.output_shape)
